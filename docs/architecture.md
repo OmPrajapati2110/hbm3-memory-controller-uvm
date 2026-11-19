@@ -105,14 +105,15 @@ never precharges the bank the column bus is using in the same cycle.
 |---|---|---|
 | 0 | FCFS | Only the oldest request may issue anything. Baseline. |
 | 1 | FR-FCFS | Any ready request, row hits first, oldest first. Highest bandwidth, can starve a request behind a stream of hits. |
-| 2 | FR-FCFS + aging | FR-FCFS, but once the oldest request has waited `AGE_THRESH` cycles its bank is reserved for it: younger hits to that bank are held and its PRE ignores hit protection. Other banks keep running at full rate. |
+| 2 | FR-FCFS + aging | FR-FCFS, but once the oldest request has waited `AGE_THRESH` cycles its bank is reserved for it: younger hits to that bank are held, its PRE ignores hit protection, and column commands in the other data direction are held so the bus turns around for it. Other banks keep running at full rate. |
 
 The first aging design forced FCFS whenever the oldest request crossed the
 threshold. The regression showed this collapsed bandwidth under heavy load,
 because the oldest request is almost always "old" when the queue is full. It
 was replaced by the per-bank reservation above, which raised bandwidth on the
 bank-parallel test from 0.036 to 0.150 column commands per cycle (about 4x)
-with the same seed. See `docs/results.md`.
+with the same seed. The bus-direction hold was added later, after the visual
+demo showed a write starving behind a read stream (bug 4 in `docs/results.md`).
 
 ## Timers
 

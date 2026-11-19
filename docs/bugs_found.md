@@ -56,3 +56,25 @@ it can count past the bound before it saturates.
 
 **Lesson.** Assertions are code and need the same scrutiny. Formal is good at
 finding checker bugs, because it tries the corner cases nobody writes tests for.
+
+### 4. A write starved behind a read stream under aging (design bug, found by the visual demo)
+
+**Symptom.** While recording traces for the demo, a write from the victim client
+waited far past the aging threshold under FR-FCFS with aging. Once the starvation
+test was changed to put the victim's write behind its reads, `a_no_starvation`
+fired.
+
+**Root cause.** Aging reserved the starved request's bank, but not the data bus.
+Three clients kept issuing reads to other banks. A write needs tRTW of read-free
+bus before it can issue, and some read was always ready, so the bus never turned
+around. The bank was reserved, but the request still could not move.
+
+**Fix.** A starved request now also owns the bus direction. While it is starved,
+column commands in the other direction are held, so the bus drains and turns
+around within tRTW or tWTR. After the fix, victim latencies are 294 to 345 cycles,
+and the regression, bug injection and formal results are unchanged.
+
+**Lesson.** A fairness guarantee has to cover every shared resource on the path,
+not only the obvious one. The existing tests missed it because the victim always
+issued reads first. Watching the scheduler cycle by cycle showed what aggregate
+metrics hid.

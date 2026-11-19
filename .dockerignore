@@ -1,0 +1,4 @@
+build/
+results/runs/
+formal/hbm3_mc_*/
+.git/

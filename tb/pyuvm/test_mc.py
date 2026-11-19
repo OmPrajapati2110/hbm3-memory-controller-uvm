@@ -16,6 +16,7 @@ from mc_common import (NC, TestKnobs, Timing, make_addr, NB, NUM_BG, POLICY_NAME
                        POL_FCFS, POL_FRFCFS, POL_FRFCFS_A)
 from mc_coverage import McCoverage
 from mc_scoreboard import McScoreboard
+from mc_trace import McTrace
 import mc_sequences as S
 
 
@@ -36,6 +37,7 @@ class McEnv(uvm_env):
         self.bus = BusAgent("bus", self)
         self.sb = McScoreboard("sb", self)
         self.cov = McCoverage("cov", self)
+        self.trace = McTrace("trace", self) if os.environ.get("TRACE_JSON") else None
 
     def connect_phase(self):
         mon = self.bus.monitor
@@ -45,6 +47,10 @@ class McEnv(uvm_env):
         mon.req_ap.connect(self.cov.req_imp.analysis_export)
         mon.rsp_ap.connect(self.cov.rsp_imp.analysis_export)
         mon.cmd_ap.connect(self.cov.cmd_imp.analysis_export)
+        if self.trace:
+            mon.req_ap.connect(self.trace.req_imp.analysis_export)
+            mon.rsp_ap.connect(self.trace.rsp_imp.analysis_export)
+            mon.cmd_ap.connect(self.trace.cmd_imp.analysis_export)
 
     @property
     def seqrs(self):
@@ -224,7 +230,11 @@ class test_starvation(BaseTest):
         k.refresh_en = 0
 
     async def stimulus(self, seqrs):
-        victim = S.FixedSeq("victim", ops=[(0, make_addr(0, 0, 2, c)) for c in range(4)],
+        # the victim needs another row of the hot bank, and also writes to an
+        # idle bank (a write competing with a read stream for the data bus)
+        victim = S.FixedSeq("victim", ops=[(1, make_addr(1, 1, 3, c)) for c in range(2)] +
+                            [(0, make_addr(0, 0, 2, c)) for c in range(4)] +
+                            [(1, make_addr(0, 0, 2, 5))],
                             idle_max=0)
         aggressors = [(S.HitStreamSeq(f"aggr{c}", n=self.n * 2, row=1), seqrs[c]) for c in range(3)]
         tasks = [cocotb.start_soon(s.start(q)) for s, q in aggressors]
@@ -252,3 +262,26 @@ class test_refresh_idle(BaseTest):
             await run_parallel([(S.RandomSeq(f"rb{burst}_{c}", n=self.n // 8, rows=2), seqrs[c])
                                 for c in range(NC)])
             await ClockCycles(bfm.dut.clk, random.randint(200, 1500))
+
+
+@mc_test
+class test_demo(BaseTest):
+    """Short mixed workload used for the visual model in demo/: three clients
+    streaming row hits to bank 0 row 1, and a fourth client that needs row 2
+    of the same bank (the starvation victim) and then mixes traffic across
+    other banks."""
+
+    def configure(self, k):
+        k.policy = env_int("TB_POLICY", POL_FRFCFS_A)
+
+    async def stimulus(self, seqrs):
+        clk = HarnessBfm().dut.clk
+        hot = [(S.HitStreamSeq(f"hot{c}", n=120, row=1), seqrs[c]) for c in range(3)]
+        tasks = [cocotb.start_soon(s.start(q)) for s, q in hot]
+        await ClockCycles(clk, 60)
+        victim = S.FixedSeq("victim", ops=[(0, make_addr(0, 0, 2, c)) for c in range(2)] +
+                            [(1, make_addr(0, 0, 2, 9))])
+        await victim.start(seqrs[3])
+        await S.ConflictSeq("mix3", n=20, banks=[5, 6, 10], rd_pct=60).start(seqrs[3])
+        for t in tasks:
+            await t

@@ -12,15 +12,20 @@ catches real bugs.
 <!-- RESULTS:BEGIN -->
 | Metric | Result |
 |---|---|
-| Seeded regression | 122/122 runs pass, 124,280 requests checked end to end |
+| Seeded regression | 122/122 runs pass, 124,295 requests checked end to end |
 | Functional coverage | 100.0% (88/88 bins) |
 | Assertion cover properties | 100.0% (24/24), every timing rule hit exactly at its limit |
 | Bug injection | 9/9 injected bugs caught |
 | Formal (SymbiYosys BMC, depth 40) | all 43 assertions proven; 4/4 formal mutants caught |
 | SV UVM bench | elaborates with 0 errors against Accellera UVM 2020 (slang) |
-| Synthesis (Yosys, generic gates) | 68,809 cells, 19,292 flip-flops |
-| Starvation (victim worst latency) | FR-FCFS 7,073 cycles vs aging 321 cycles |
+| Synthesis (Yosys, generic gates) | 68,889 cells, 19,292 flip-flops |
+| Starvation (victim worst latency) | FR-FCFS 7,066 cycles vs aging 345 cycles |
 <!-- RESULTS:END -->
+
+**See it run:** [interactive cycle-by-cycle model](https://claude.ai/artifact/Wzp1zgnqYeVc8C6ZQTAeCc)
+(source in `demo/`). It replays real Verilator traces of this RTL and compares
+FCFS, FR-FCFS and aging on the same traffic. Building it uncovered a real
+starvation bug, which is now fixed (bug 4 in [docs/results.md](docs/results.md)).
 
 ## What the design does
 
@@ -91,6 +96,9 @@ make synth                         # generic gate-level synthesis
 UVM_HOME=<uvm-core>/src make uvm-check   # elaborate the SV UVM bench with slang
 ```
 
+On a Mac, use the Dockerfile (same tool versions as the results) or Homebrew:
+see [docs/macos.md](docs/macos.md).
+
 SystemVerilog UVM on a commercial simulator:
 
 ```bash
@@ -98,9 +106,10 @@ cd tb/uvm && make SIM=questa TEST=mc_random_test SEED=7
 ```
 
 Tests: `smoke`, `random`, `stream`, `row_conflict`, `bank_parallel`,
-`turnaround`, `hazard`, `backpressure`, `starvation`, `refresh_idle` (prefix
+`turnaround`, `hazard`, `backpressure`, `starvation`, `refresh_idle`, `demo` (prefix
 `test_` in pyuvm, `mc_..._test` in SV UVM). Add `TB_POLICY=0|1|2` (pyuvm) or
-`+POLICY=` (UVM) to force a policy, and `WAVES=1` to dump waveforms.
+`+POLICY=` (UVM) to force a policy, and `WAVES=1` to dump waveforms, or
+`TRACE_JSON=<abs path>` to record a trace for the demo.
 
 ## Repository layout
 
@@ -113,7 +122,8 @@ tb/pyuvm/   pyuvm/cocotb bench (Verilator)
 formal/     SymbiYosys harness
 scripts/    regression, mutants, policy sweep, UVM elaboration check
 syn/        Yosys synthesis script and stats
-docs/       architecture, timing, verification plan, results
+docs/       architecture, timing, verification plan, results, macOS setup
+demo/       interactive trace viewer and recorded traces
 results/    generated reports
 ```
 

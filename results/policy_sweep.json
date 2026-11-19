@@ -16,11 +16,11 @@
   "pass": true
  },
  "test_random/FR-FCFS+aging": {
-  "bw": 0.164,
-  "hit": 0.231,
-  "lat": 206.9,
-  "p99": 511.7,
-  "worst": 697,
+  "bw": 0.157,
+  "hit": 0.225,
+  "lat": 216.4,
+  "p99": 530.7,
+  "worst": 646,
   "pass": true
  },
  "test_stream/FCFS": {
@@ -40,11 +40,11 @@
   "pass": true
  },
  "test_stream/FR-FCFS+aging": {
-  "bw": 0.306,
-  "hit": 0.957,
-  "lat": 119.0,
-  "p99": 360.3,
-  "worst": 470,
+  "bw": 0.303,
+  "hit": 0.955,
+  "lat": 121.1,
+  "p99": 390.0,
+  "worst": 431,
   "pass": true
  },
  "test_row_conflict/FCFS": {
@@ -64,11 +64,11 @@
   "pass": true
  },
  "test_row_conflict/FR-FCFS+aging": {
-  "bw": 0.034,
-  "hit": 0.0,
-  "lat": 935.6,
-  "p99": 1511.0,
-  "worst": 1590,
+  "bw": 0.029,
+  "hit": 0.001,
+  "lat": 1088.9,
+  "p99": 1439.0,
+  "worst": 1518,
   "pass": true
  },
  "test_hazard/FCFS": {
@@ -88,35 +88,27 @@
   "pass": true
  },
  "test_hazard/FR-FCFS+aging": {
-  "bw": 0.107,
-  "hit": 0.844,
-  "lat": 313.0,
-  "p99": 958.3,
-  "worst": 1351,
-  "pass": true
- },
- "test_starvation/FCFS": {
-  "bw": 0.24,
-  "hit": 0.995,
-  "lat": 132.6,
-  "p99": 344.0,
-  "worst": 416,
+  "bw": 0.108,
+  "hit": 0.88,
+  "lat": 310.3,
+  "p99": 731.7,
+  "worst": 868,
   "pass": true
  },
  "test_starvation/FR-FCFS": {
   "bw": 0.248,
-  "hit": 0.999,
-  "lat": 128.4,
+  "hit": 0.998,
+  "lat": 128.5,
   "p99": 129.0,
-  "worst": 7073,
+  "worst": 7066,
   "pass": true
  },
  "test_starvation/FR-FCFS+aging": {
-  "bw": 0.247,
+  "bw": 0.245,
   "hit": 0.998,
-  "lat": 129.2,
-  "p99": 187.0,
-  "worst": 321,
+  "lat": 130.1,
+  "p99": 234.0,
+  "worst": 345,
   "pass": true
  }
 }

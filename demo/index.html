@@ -1,0 +1,341 @@
+<meta charset="utf-8">
+<title>HBM3 Controller Live Model</title>
+<meta name="claude:viewport-fit-sides" content="cover">
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=IBM+Plex+Sans:wght@400;500;600&family=IBM+Plex+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: control strip, then a two-column bench (clients | banks + buses), then the policy comparison. */
+:root {
+  --bg: #f3f5f4; --panel: #ffffff; --ink: #18211f; --muted: #5b6764; --line: #d5dcda;
+  --accent: #0f7b6c; --c0: #2f6fd6; --c1: #8a4fd0; --c2: #c2621f; --c3: #c8325a;
+  --act: #1f8a4c; --pre: #b7791f; --ref: #6b7280; --rd: #2f6fd6; --wr: #c8325a;
+  --warn: #c2410c; --open: #e3f3ee; --closed: #eef1f0;
+  --sans: "IBM Plex Sans", system-ui, -apple-system, "Segoe UI", sans-serif;
+  --mono: "IBM Plex Mono", ui-monospace, "SFMono-Regular", Menlo, monospace;
+}
+@media (prefers-color-scheme: dark) { :root:not([data-theme="light"]) {
+  --bg: #111615; --panel: #1a2120; --ink: #e5ece9; --muted: #95a39f; --line: #2e3836;
+  --accent: #3cc3ab; --c0: #6ea0f0; --c1: #b58cf0; --c2: #f0a060; --c3: #f0708f;
+  --act: #4cc583; --pre: #e0aa4a; --ref: #9aa3ae; --rd: #6ea0f0; --wr: #f0708f;
+  --warn: #fb923c; --open: #183630; --closed: #20292a; color-scheme: dark } }
+:root[data-theme="dark"] {
+  --bg: #111615; --panel: #1a2120; --ink: #e5ece9; --muted: #95a39f; --line: #2e3836;
+  --accent: #3cc3ab; --c0: #6ea0f0; --c1: #b58cf0; --c2: #f0a060; --c3: #f0708f;
+  --act: #4cc583; --pre: #e0aa4a; --ref: #9aa3ae; --rd: #6ea0f0; --wr: #f0708f;
+  --warn: #fb923c; --open: #183630; --closed: #20292a; color-scheme: dark }
+body { background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.45; }
+.wrap { max-width: 1180px; margin: 0 auto; padding-block: 20px 40px;
+  padding-left: max(16px, env(safe-area-inset-left, 0px)); padding-right: max(16px, env(safe-area-inset-right, 0px));
+  display: grid; gap: 16px; }
+h1 { font-size: 1.5rem; margin: 0; font-weight: 600; text-wrap: balance; }
+h2 { font-size: .78rem; text-transform: uppercase; letter-spacing: .08em; color: var(--muted); margin: 0 0 10px; font-weight: 600; }
+p { margin: 0; max-width: 70ch; color: var(--muted); }
+.mono { font-family: var(--mono); font-variant-numeric: tabular-nums; }
+.panel { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 14px; min-width: 0; }
+.controls { display: flex; flex-wrap: wrap; gap: 10px 16px; align-items: center; }
+.seg { display: inline-flex; border: 1px solid var(--line); border-radius: 6px; overflow: hidden; }
+.seg button { border: 0; background: transparent; color: var(--ink); padding: 7px 12px; font: 500 .85rem var(--sans); cursor: pointer; }
+.seg button[aria-pressed="true"] { background: var(--accent); color: var(--panel); }
+.btn { border: 1px solid var(--line); background: var(--panel); color: var(--ink); border-radius: 6px; padding: 7px 12px; font: 500 .85rem var(--sans); cursor: pointer; }
+.btn:hover, .seg button:hover { border-color: var(--accent); }
+button:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.scrub { flex: 1 1 260px; display: flex; gap: 10px; align-items: center; min-width: 0; }
+.scrub input { flex: 1; min-width: 0; accent-color: var(--accent); }
+.bench { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, 1.45fr); gap: 16px; }
+@media (max-width: 860px) { .bench { grid-template-columns: 1fr; } }
+.stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(130px, 1fr)); gap: 10px; }
+.stat { border-left: 3px solid var(--line); padding: 2px 10px; }
+.stat b { display: block; font: 500 1.15rem var(--mono); font-variant-numeric: tabular-nums; }
+.stat span { font-size: .75rem; color: var(--muted); text-transform: uppercase; letter-spacing: .05em; }
+.stat.on { border-left-color: var(--warn); }
+.stat.on b { color: var(--warn); }
+.client { display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 8px; align-items: start; padding: 8px 0; border-top: 1px solid var(--line); }
+.client:first-of-type { border-top: 0; }
+.cname { font: 600 .85rem var(--sans); }
+.cname small { display: block; font: 400 .7rem var(--sans); color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 4px; min-height: 26px; }
+.chip { font: 500 .68rem var(--mono); padding: 3px 5px; border-radius: 4px; border: 1px solid var(--line);
+  background: var(--closed); position: relative; overflow: hidden; white-space: nowrap; }
+.chip i { position: absolute; left: 0; bottom: 0; height: 2px; background: var(--accent); }
+.chip.old i { background: var(--warn); }
+.chip.old { border-color: var(--warn); }
+.banks { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 8px; }
+.bgcol { display: grid; gap: 6px; }
+.bgcol h3 { margin: 0; font: 600 .72rem var(--sans); color: var(--muted); text-transform: uppercase; letter-spacing: .06em; }
+.bank { border: 1px solid var(--line); border-radius: 6px; padding: 6px 8px; background: var(--closed); transition: background .15s; min-width: 0; }
+.bank.open { background: var(--open); border-color: var(--accent); }
+.bank .bid { font: 500 .7rem var(--mono); color: var(--muted); }
+.bank .st { font: 500 .82rem var(--mono); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bank .last { font: 400 .68rem var(--mono); color: var(--muted); }
+.bank.flash-ACT { box-shadow: 0 0 0 2px var(--act); }
+.bank.flash-PRE { box-shadow: 0 0 0 2px var(--pre); }
+.bank.flash-RD { box-shadow: 0 0 0 2px var(--rd); }
+.bank.flash-WR { box-shadow: 0 0 0 2px var(--wr); }
+.bank.flash-REF { box-shadow: 0 0 0 2px var(--ref); }
+.tl { width: 100%; height: 120px; display: block; }
+.legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: .75rem; color: var(--muted); margin-top: 8px; }
+.legend span::before { content: ""; display: inline-block; width: 10px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; background: var(--k); }
+.cmp { width: 100%; border-collapse: collapse; font-size: .85rem; }
+.cmp th, .cmp td { text-align: right; padding: 7px 10px; border-bottom: 1px solid var(--line); font-variant-numeric: tabular-nums; }
+.cmp th:first-child, .cmp td:first-child { text-align: left; }
+.cmp th { font-size: .72rem; text-transform: uppercase; letter-spacing: .05em; color: var(--muted); font-weight: 600; }
+.cmp tr.sel td { background: var(--open); }
+.tablewrap { overflow-x: auto; }
+.note { font-size: .8rem; }
+.err { color: var(--warn); }
+@media (prefers-reduced-motion: reduce) { .bank { transition: none; } }
+</style>
+
+<div class="wrap">
+  <header style="display:grid;gap:6px">
+    <h1>HBM3 controller, cycle by cycle</h1>
+    <p>Replays real simulations of the controller RTL (Verilator, cycle accurate). Three clients stream reads to row 1 of bank 0. Client 3 is the "victim": it needs row 2 of the same bank, then mixes reads and writes to other banks. Switch the scheduling policy to see who waits.</p>
+  </header>
+
+  <section class="panel controls" aria-label="Playback">
+    <div class="seg" role="group" aria-label="Scheduling policy" id="pol">
+      <button id="p0" data-p="0" aria-pressed="false">FCFS</button>
+      <button id="p1" data-p="1" aria-pressed="false">FR-FCFS</button>
+      <button id="p2" data-p="2" aria-pressed="true">FR-FCFS + aging</button>
+    </div>
+    <button class="btn" id="play">Play</button>
+    <button class="btn" id="step" title="Advance one cycle">+1 cycle</button>
+    <div class="seg" role="group" aria-label="Speed" id="spd">
+      <button id="s1" data-s="1" aria-pressed="false">1x</button>
+      <button id="s4" data-s="4" aria-pressed="true">4x</button>
+      <button id="s16" data-s="16" aria-pressed="false">16x</button>
+    </div>
+    <div class="scrub"><input type="range" id="cyc" min="0" max="100" value="0" aria-label="Cycle"><span class="mono" id="cyclbl">cycle 0</span></div>
+  </section>
+
+  <section class="panel stats" aria-label="Controller status">
+    <div class="stat"><b id="st-q">0/16</b><span>Queue occupancy</span></div>
+    <div class="stat"><b id="st-done">0</b><span>Requests completed</span></div>
+    <div class="stat"><b id="st-bw">0.000</b><span>Column cmds / cycle</span></div>
+    <div class="stat"><b id="st-hit">0%</b><span>Row-hit rate</span></div>
+    <div class="stat" id="st-agingbox"><b id="st-aging">off</b><span>Aging override</span></div>
+    <div class="stat" id="st-refbox"><b id="st-ref">idle</b><span>Refresh</span></div>
+  </section>
+
+  <div class="bench">
+    <section class="panel" aria-label="Clients">
+      <h2>Clients: requests waiting</h2>
+      <div id="clients"></div>
+      <p class="note" style="margin-top:8px">Each chip is an accepted request: R or W, bank, row. The bar grows with waiting time and turns orange after 256 cycles, the aging threshold.</p>
+    </section>
+    <section class="panel" aria-label="Banks and command buses" style="display:grid;gap:14px">
+      <div>
+        <h2>16 banks in 4 bank groups</h2>
+        <div class="banks" id="banks"></div>
+      </div>
+      <div>
+        <h2>Command buses, last 160 cycles</h2>
+        <canvas class="tl" id="tl" width="900" height="120" aria-label="Row and column command bus timeline"></canvas>
+        <div class="legend">
+          <span style="--k:var(--act)">ACT open row</span><span style="--k:var(--pre)">PRE close row</span>
+          <span style="--k:var(--ref)">REF refresh</span><span style="--k:var(--rd)">RD</span><span style="--k:var(--wr)">WR</span>
+        </div>
+      </div>
+    </section>
+  </div>
+
+  <section class="panel" aria-label="Policy comparison">
+    <h2>Same traffic, three policies</h2>
+    <div class="tablewrap"><table class="cmp" id="cmp">
+      <thead><tr><th>Policy</th><th>Cycles to finish</th><th>Column cmds / cycle</th><th>Row-hit rate</th><th>Mean latency</th><th>Client 3 worst wait</th></tr></thead>
+      <tbody></tbody>
+    </table></div>
+    <p class="note" style="margin-top:10px">FCFS serves strictly in order, so every row change costs a full precharge and activate. FR-FCFS serves ready row hits first, which is fast, but client 3's writes wait almost 2,000 cycles: the read stream keeps the data bus busy, so it never turns around to write. Once a request has waited 256 cycles, aging reserves its bank and its bus direction, so it finishes in a few hundred cycles while the other banks keep working. Latency is in controller cycles, from acceptance to response.</p>
+  </section>
+  <p class="note" id="msg"></p>
+</div>
+
+<script>
+(function () {
+  const POL = ["FCFS", "FR-FCFS", "FR-FCFS + aging"];
+  const ROWC = { 1: "ACT", 2: "PRE", 3: "REF" }, COLC = { 1: "RD", 2: "WR" };
+  const CLIENTS = [["Client 0", "stream, bank 0 row 1"], ["Client 1", "stream, bank 0 row 1"],
+                   ["Client 2", "stream, bank 0 row 1"], ["Client 3", "victim, then mixed"]];
+  const data = {}, summ = {};
+  let pol = 2, cur = null, playing = false, speed = 4, timer = null;
+
+  const $ = (id) => document.getElementById(id);
+  const css = (v) => getComputedStyle(document.documentElement).getPropertyValue(v).trim();
+
+  // ---------- trace -> per-cycle index ---------------------------------------
+  function index(ev) {
+    let max = 0;
+    for (const e of ev) if (e[1] > max) max = e[1];
+    const by = Array.from({ length: max + 1 }, () => []);
+    for (const e of ev) by[e[1]].push(e);
+    return { by, max };
+  }
+  function fresh() {
+    return { cyc: 0, banks: Array.from({ length: 16 }, () => ({ open: false, row: 0, last: "", lastc: -99, fresh: false })),
+             out: new Map(), done: 0, col: 0, hit: 0, lat: [], q: 0, aging: 0, ref: 0, cmds: [], victimMax: 0 };
+  }
+  function apply(s, evs) {
+    for (const e of evs) {
+      const t = e[0];
+      if (t === "q") s.out.set(e[2] + ":" + e[3], { c: e[2], we: e[4], ba: e[5], row: e[6], t: e[1] });
+      else if (t === "r") {
+        const k = e[2] + ":" + e[3], r = s.out.get(k);
+        if (r) { s.out.delete(k); s.done++; s.lat.push(e[1] - r.t); if (r.c === 3) s.victimMax = Math.max(s.victimMax, e[1] - r.t); }
+      } else if (t === "c") {
+        const [, cy, rc, rba, rrow, cc, cba] = e;
+        if (rc) {
+          const n = ROWC[rc];
+          if (rc === 3) s.banks.forEach((b) => { b.last = "REF"; b.lastc = cy; });
+          else { const b = s.banks[rba]; b.last = n + (rc === 1 ? " r" + rrow : ""); b.lastc = cy;
+                 if (rc === 1) { b.open = true; b.row = rrow; b.fresh = true; } else b.open = false; }
+          s.cmds.push([cy, 0, n]);
+        }
+        if (cc) {
+          const n = COLC[cc], b = s.banks[cba];
+          b.last = n; b.lastc = cy; s.col++;
+          if (b.fresh) b.fresh = false; else s.hit++;
+          s.cmds.push([cy, 1, n]);
+        }
+        if (s.cmds.length > 400) s.cmds.splice(0, s.cmds.length - 400);
+      } else if (t === "s") { s.q = e[2]; s.aging = e[3]; s.ref = e[4]; }
+    }
+  }
+  function stateAt(p, cyc) {
+    const d = data[p], s = fresh();
+    for (let c = 0; c <= Math.min(cyc, d.max); c++) apply(s, d.by[c]);
+    s.cyc = cyc;
+    return s;
+  }
+  function summarize(p) {
+    const s = stateAt(p, data[p].max);
+    const mean = s.lat.reduce((a, b) => a + b, 0) / Math.max(1, s.lat.length);
+    return { cycles: data[p].max, bw: s.col / data[p].max, hit: s.col ? s.hit / s.col : 0, mean, victim: s.victimMax };
+  }
+
+  // ---------- render ---------------------------------------------------------
+  const banksEl = $("banks"), clientsEl = $("clients");
+  const bankEls = [];
+  for (let g = 0; g < 4; g++) {
+    const col = document.createElement("div"); col.className = "bgcol";
+    col.innerHTML = "<h3>Bank group " + g + "</h3>";
+    for (let k = 0; k < 4; k++) {
+      const ba = (k << 2) | g, el = document.createElement("div");
+      el.className = "bank";
+      el.innerHTML = '<div class="bid">bank ' + ba + '</div><div class="st">closed</div><div class="last">&nbsp;</div>';
+      bankEls[ba] = el; col.appendChild(el);
+    }
+    banksEl.appendChild(col);
+  }
+  const chipBoxes = CLIENTS.map(([n, d], c) => {
+    const row = document.createElement("div"); row.className = "client";
+    row.innerHTML = '<div class="cname" style="color:var(--c' + c + ')">' + n + "<small>" + d + '</small></div><div class="chips"></div>';
+    clientsEl.appendChild(row);
+    return row.querySelector(".chips");
+  });
+
+  function render() {
+    const s = cur;
+    $("cyc").value = s.cyc;
+    $("cyclbl").textContent = "cycle " + s.cyc + " / " + data[pol].max;
+    $("st-q").textContent = s.q + "/16";
+    $("st-done").textContent = s.done;
+    $("st-bw").textContent = (s.cyc ? s.col / s.cyc : 0).toFixed(3);
+    $("st-hit").textContent = s.col ? Math.round(100 * s.hit / s.col) + "%" : "–";
+    $("st-aging").textContent = s.aging ? "ACTIVE" : "off";
+    $("st-agingbox").classList.toggle("on", !!s.aging);
+    $("st-ref").textContent = s.ref ? "pending" : "idle";
+    $("st-refbox").classList.toggle("on", !!s.ref);
+    s.banks.forEach((b, i) => {
+      const el = bankEls[i];
+      el.className = "bank" + (b.open ? " open" : "") + (s.cyc - b.lastc <= 2 && b.last ? " flash-" + b.last.split(" ")[0] : "");
+      el.children[1].textContent = b.open ? "row " + b.row : "closed";
+      el.children[2].textContent = b.last ? b.last + " @" + b.lastc : " ";
+    });
+    const per = [[], [], [], []];
+    for (const r of s.out.values()) per[r.c].push(r);
+    per.forEach((list, c) => {
+      list.sort((a, b) => a.t - b.t);
+      const box = chipBoxes[c], shown = list.slice(0, 18);
+      box.innerHTML = shown.map((r) => {
+        const w = s.cyc - r.t, old = w >= 256;
+        return '<span class="chip' + (old ? " old" : "") + '" title="waiting ' + w + ' cycles">' + (r.we ? "W" : "R") + " b" + r.ba + " r" + r.row +
+               '<i style="width:' + Math.min(100, w / 5.12) + '%"></i></span>';
+      }).join("") + (list.length > shown.length ? '<span class="chip">+' + (list.length - shown.length) + "</span>" : "");
+    });
+    drawTimeline(s);
+  }
+
+  function drawTimeline(s) {
+    const cv = $("tl"), dpr = window.devicePixelRatio || 1, w = cv.clientWidth, h = 120;
+    if (cv.width !== Math.round(w * dpr)) { cv.width = Math.round(w * dpr); cv.height = h * dpr; }
+    const x = cv.getContext("2d"); x.setTransform(dpr, 0, 0, dpr, 0, 0);
+    x.clearRect(0, 0, w, h);
+    const left = 44, span = 160, cw = (w - left - 6) / span, t0 = s.cyc - span + 1;
+    x.font = "11px " + css("--mono"); x.fillStyle = css("--muted");
+    x.fillText("row", 4, 34); x.fillText("col", 4, 84);
+    x.strokeStyle = css("--line"); x.lineWidth = 1;
+    for (let c = Math.ceil(t0 / 20) * 20; c <= s.cyc; c += 20) {
+      const xx = left + (c - t0) * cw; x.beginPath(); x.moveTo(xx, 12); x.lineTo(xx, 104); x.stroke();
+      x.fillText(String(c), xx + 2, 116);
+    }
+    const col = { ACT: css("--act"), PRE: css("--pre"), REF: css("--ref"), RD: css("--rd"), WR: css("--wr") };
+    for (const [cy, bus, n] of s.cmds) {
+      if (cy < t0) continue;
+      x.fillStyle = col[n];
+      x.fillRect(left + (cy - t0) * cw, bus ? 66 : 16, Math.max(2, cw - 1), 28);
+    }
+  }
+
+  function renderCompare() {
+    const tb = $("cmp").querySelector("tbody");
+    tb.innerHTML = [0, 1, 2].map((p) => {
+      const m = summ[p];
+      return '<tr class="' + (p === pol ? "sel" : "") + '"><td>' + POL[p] + "</td><td>" + m.cycles.toLocaleString() + "</td><td>" + m.bw.toFixed(3) +
+             "</td><td>" + Math.round(m.hit * 100) + "%</td><td>" + Math.round(m.mean) + "</td><td>" + m.victim.toLocaleString() + "</td></tr>";
+    }).join("");
+  }
+
+  // ---------- controls -------------------------------------------------------
+  function setPol(p) {
+    pol = p;
+    document.querySelectorAll("#pol button").forEach((b) => b.setAttribute("aria-pressed", String(+b.dataset.p === p)));
+    $("cyc").max = data[p].max;
+    const c = Math.min(cur ? cur.cyc : 0, data[p].max);
+    cur = stateAt(p, c);
+    renderCompare(); render();
+  }
+  function seek(c) { cur = stateAt(pol, Math.max(0, Math.min(c, data[pol].max))); render(); }
+  function step(n) {
+    for (let i = 0; i < n && cur.cyc < data[pol].max; i++) { cur.cyc++; apply(cur, data[pol].by[cur.cyc]); }
+    render();
+    if (cur.cyc >= data[pol].max) stop();
+  }
+  function play() {
+    if (cur.cyc >= data[pol].max) seek(0);
+    playing = true; $("play").textContent = "Pause";
+    timer = setInterval(() => step(speed), 40);
+  }
+  function stop() { playing = false; $("play").textContent = "Play"; clearInterval(timer); }
+
+  $("pol").addEventListener("click", (e) => { const b = e.target.closest("button"); if (b) setPol(+b.dataset.p); });
+  $("spd").addEventListener("click", (e) => {
+    const b = e.target.closest("button"); if (!b) return;
+    speed = +b.dataset.s;
+    document.querySelectorAll("#spd button").forEach((x) => x.setAttribute("aria-pressed", String(x === b)));
+  });
+  $("play").addEventListener("click", () => (playing ? stop() : play()));
+  $("step").addEventListener("click", () => { stop(); step(1); });
+  $("cyc").addEventListener("input", (e) => { stop(); seek(+e.target.value); });
+  window.addEventListener("resize", () => cur && drawTimeline(cur));
+  if (window.matchMedia) matchMedia("(prefers-color-scheme: dark)").addEventListener?.("change", () => cur && render());
+
+  Promise.all([0, 1, 2].map((p) => fetch("traces/policy" + p + ".json").then((r) => { if (!r.ok) throw new Error(r.status); return r.json(); })))
+    .then((all) => {
+      all.forEach((ev, p) => { data[p] = index(ev); });
+      [0, 1, 2].forEach((p) => { summ[p] = summarize(p); });
+      // open on an informative frame: the aging policy just after the victim arrives
+      cur = stateAt(2, 330);
+      setPol(2);
+    })
+    .catch((e) => { $("msg").innerHTML = '<span class="err">Could not load the simulation traces (' + e.message + '). Reload the page to try again.</span>'; });
+})();
+</script>

@@ -295,6 +295,7 @@ module hbm3_mc #(
   logic [QDEPTH-1:0] oldest_oh, elig, col_req, act_req, pre_req, col_pick, row_pick;
   logic              fcfs, starve;
   logic [BA_W-1:0]   starve_ba;
+  logic              starve_we;
   logic              col_go, row_go;
   logic [QI_W-1:0]   col_idx, row_idx;
 
@@ -320,14 +321,20 @@ module hbm3_mc #(
     //   FR-FCFS       any ready request; column hits first, oldest first
     //   FR-FCFS+aging as FR-FCFS, but once the oldest request has waited
     //                 AGE_THRESH cycles its bank is reserved for it: younger
-    //                 hits to that bank are held so its row can be closed.
-    //                 Other banks keep running at full rate.
+    //                 hits to that bank are held so its row can be closed,
+    //                 and column commands of the opposite direction are held
+    //                 so bus turnaround cannot starve it. Other traffic keeps
+    //                 running.
     oldest_oh = oldest(e_valid, older);
     fcfs      = (cfg_policy == hbm3_mc_pkg::POL_FCFS);
     starve    = 1'b0;
     starve_ba = '0;
+    starve_we = 1'b0;
     for (int i = 0; i < QDEPTH; i++) begin
-      if (oldest_oh[i]) starve_ba = e_ba[i];
+      if (oldest_oh[i]) begin
+        starve_ba = e_ba[i];
+        starve_we = e_we[i];
+      end
 `ifndef MUT_NO_AGING
       if (cfg_policy == hbm3_mc_pkg::POL_FRFCFS_A && oldest_oh[i] &&
           e_wait[i] >= AGE_W'(AGE_THRESH))
@@ -341,7 +348,11 @@ module hbm3_mc #(
       col_req[i] = elig[i] & hit[i] & ~blocked[i] & ~ref_pending &
                    bk_col_ok[e_ba[i]] & credit_ok[e_cli[i]] &
                    (e_we[i] ? wr_ok_bg[e_ba[i][BG_W-1:0]] : rd_ok_bg[e_ba[i][BG_W-1:0]]) &
-                   ~(starve && e_ba[i] == starve_ba && !oldest_oh[i]);
+                   ~(starve && e_ba[i] == starve_ba && !oldest_oh[i]) &
+                   // a starved request also owns the data-bus direction, so a
+                   // stream of the opposite type cannot keep the tRTW / tWTR
+                   // turnaround timer reloaded forever
+                   ~(starve && e_we[i] != starve_we);
     end
     col_pick = oldest(col_req, older);
     col_go   = |col_pick;
