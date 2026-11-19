@@ -1,0 +1,9 @@
+`verilator_config
+// rd_valid is checked by the bound SVA (rd_valid must line up with the completion pipeline)
+lint_off -rule UNUSEDSIGNAL -file "*hbm3_mc.sv" -match "*rd_valid*"
+// address offset bits are required to be zero (checked by SVA), not used by the datapath
+lint_off -rule UNUSEDSIGNAL -file "*hbm3_mc.sv" -match "*sel_addr*"
+lint_off -rule PINCONNECTEMPTY
+lint_off -rule UNUSEDPARAM -file "*hbm3_mc_pkg.sv"
+// flattened debug views exist only for the bound assertion module
+lint_off -rule UNUSEDSIGNAL -file "*hbm3_mc.sv" -match "*dbg_*_flat*"

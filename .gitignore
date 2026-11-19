@@ -1,0 +1,10 @@
+build/
+results/runs/
+__pycache__/
+formal/hbm3_mc_*/
+*.vcd
+*.fst
+coverage.dat
+results.xml
+syn/yosys.log
+work/

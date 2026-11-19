@@ -1,0 +1,44 @@
+# Lint, short regression, bug-injection and formal on every push.
+name: ci
+on: [push, pull_request]
+
+jobs:
+  sim:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: Tools
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y verilator yosys
+          pip install "cocotb==1.9.2" "pyuvm==3.0.0"
+      - name: Lint
+        run: make lint
+      - name: Regression (1 seed per weight)
+        run: python3 scripts/regress.py --seeds 1
+      - name: Bug injection
+        run: python3 scripts/run_mutants.py
+      - uses: actions/upload-artifact@v4
+        if: always()
+        with:
+          name: results
+          path: results/*.md
+
+  formal:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - uses: YosysHQ/setup-oss-cad-suite@v3
+      - name: Formal (bounded proof + formal mutants)
+        run: cd formal && sby -f hbm3_mc.sby
+
+  uvm-elaboration:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v4
+      - name: slang + UVM
+        run: |
+          pip install pyslang
+          git clone --depth 1 https://github.com/accellera-official/uvm-core /tmp/uvm-core
+      - name: Elaborate SV UVM bench
+        run: UVM_HOME=/tmp/uvm-core/src python3 scripts/check_uvm_compile.py

@@ -1,0 +1,53 @@
+# SymbiYosys: bounded proof of every protocol/timing assertion on a reduced
+# configuration (task "bmc", expected PASS), plus non-vacuity checks: the same
+# proof on deliberately broken RTL must FAIL (tasks "mut_*").
+#   sby -f hbm3_mc.sby bmc
+#   sby -f hbm3_mc.sby            (all tasks)
+[tasks]
+bmc
+mut_trcd
+mut_tfaw
+mut_credit
+mut_ref_early
+
+[options]
+mode bmc
+bmc: depth 40
+mut_trcd: depth 20
+mut_tfaw: depth 30
+mut_credit: depth 30
+mut_ref_early: depth 40
+mut_trcd: expect fail
+mut_tfaw: expect fail
+mut_credit: expect fail
+mut_ref_early: expect fail
+multiclock off
+# counterexample traces need yices (aigsmt); without it the status is still exact
+aigsmt none
+
+[engines]
+abc bmc3
+
+[script]
+mut_trcd: verilog_defaults -add -D MUT_TRCD
+mut_tfaw: verilog_defaults -add -D MUT_TFAW
+mut_credit: verilog_defaults -add -D MUT_CREDIT
+mut_ref_early: verilog_defaults -add -D MUT_REF_EARLY
+read_verilog -sv -formal -D FORMAL hbm3_mc_pkg.sv mc_fifo.sv mc_rr_arb.sv mc_bank.sv mc_rank_timer.sv mc_refresh.sv hbm3_mc.sv hbm3_mc_sva.sv hbm3_timing_checker.sv hbm3_mc_formal.sv
+prep -top hbm3_mc_formal
+memory_map
+opt -fast
+async2sync
+
+[files]
+../rtl/hbm3_mc_pkg.sv
+../rtl/mc_fifo.sv
+../rtl/mc_rr_arb.sv
+../rtl/mc_bank.sv
+../rtl/mc_rank_timer.sv
+../rtl/mc_refresh.sv
+../rtl/hbm3_mc.sv
+../tb/sva/hbm3_mc_sva.sv
+../tb/sva/hbm3_timing_checker.sv
+../tb/sva/sva_macros.svh
+hbm3_mc_formal.sv

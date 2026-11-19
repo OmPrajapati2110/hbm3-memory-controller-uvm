@@ -1,0 +1,136 @@
+[
+ {
+  "mutant": "MUT_TRCD",
+  "bug": "Column command allowed right after ACT (tRCD ignored)",
+  "killed": true,
+  "failing_tests": [
+   "test_backpressure",
+   "test_bank_parallel",
+   "test_hazard",
+   "test_random",
+   "test_refresh_idle",
+   "test_row_conflict",
+   "test_smoke",
+   "test_starvation",
+   "test_stream",
+   "test_turnaround"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_tchk.a_tRCD",
+  "repro": "make -C tb/pyuvm TESTCASE=test_backpressure RANDOM_SEED=1 MUTANT=MUT_TRCD PLUSARGS=+NO_STARVE_CHK"
+ },
+ {
+  "mutant": "MUT_TCCD_L",
+  "bug": "Same-bank-group column spacing uses tCCD_S instead of tCCD_L",
+  "killed": true,
+  "failing_tests": [
+   "test_backpressure",
+   "test_bank_parallel",
+   "test_hazard",
+   "test_random",
+   "test_refresh_idle",
+   "test_smoke",
+   "test_starvation",
+   "test_stream",
+   "test_turnaround"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_tchk.a_tCCD_L",
+  "repro": "make -C tb/pyuvm TESTCASE=test_backpressure RANDOM_SEED=1 MUTANT=MUT_TCCD_L PLUSARGS=+NO_STARVE_CHK"
+ },
+ {
+  "mutant": "MUT_TWTR_L",
+  "bug": "Same-bank-group write-to-read turnaround (tWTR_L) ignored",
+  "killed": true,
+  "failing_tests": [
+   "test_backpressure",
+   "test_bank_parallel",
+   "test_hazard",
+   "test_random",
+   "test_refresh_idle",
+   "test_smoke",
+   "test_stream",
+   "test_turnaround"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_tchk.a_tWTR_L",
+  "repro": "make -C tb/pyuvm TESTCASE=test_backpressure RANDOM_SEED=1 MUTANT=MUT_TWTR_L PLUSARGS=+NO_STARVE_CHK"
+ },
+ {
+  "mutant": "MUT_TFAW",
+  "bug": "Four-activate window (tFAW) not enforced",
+  "killed": true,
+  "failing_tests": [
+   "test_backpressure",
+   "test_bank_parallel",
+   "test_random",
+   "test_refresh_idle",
+   "test_stream",
+   "test_turnaround"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_tchk.a_tFAW",
+  "repro": "make -C tb/pyuvm TESTCASE=test_backpressure RANDOM_SEED=1 MUTANT=MUT_TFAW PLUSARGS=+NO_STARVE_CHK"
+ },
+ {
+  "mutant": "MUT_REF_EARLY",
+  "bug": "REF issued before every bank is precharged",
+  "killed": true,
+  "failing_tests": [
+   "test_backpressure",
+   "test_bank_parallel",
+   "test_hazard",
+   "test_random",
+   "test_refresh_idle",
+   "test_row_conflict",
+   "test_stream",
+   "test_turnaround"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_tchk.a_ref_tRP",
+  "repro": "make -C tb/pyuvm TESTCASE=test_backpressure RANDOM_SEED=1 MUTANT=MUT_REF_EARLY PLUSARGS=+NO_STARVE_CHK"
+ },
+ {
+  "mutant": "MUT_HAZARD",
+  "bug": "Same-address ordering check removed (younger request may pass older)",
+  "killed": true,
+  "failing_tests": [
+   "test_hazard",
+   "test_smoke",
+   "test_turnaround"
+  ],
+  "first_detection": "ERROR ..c/tb/pyuvm/mc_scoreboard.py(123) [uvm_test_top.env.sb]: client 1 id 6 addr 0x1d800: read overtook the same client's earlier write to this line",
+  "repro": "make -C tb/pyuvm TESTCASE=test_hazard RANDOM_SEED=1 MUTANT=MUT_HAZARD"
+ },
+ {
+  "mutant": "MUT_CREDIT",
+  "bug": "Response credit check off by one (can overflow response FIFO)",
+  "killed": true,
+  "failing_tests": [
+   "test_smoke"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_dut.u_mc_sva.g_cli[0].a_credit_bound",
+  "repro": "make -C tb/pyuvm TESTCASE=test_smoke RANDOM_SEED=1 MUTANT=MUT_CREDIT"
+ },
+ {
+  "mutant": "MUT_WDATA",
+  "bug": "Write data bit flipped on the last column of a row",
+  "killed": true,
+  "failing_tests": [
+   "test_backpressure",
+   "test_bank_parallel",
+   "test_random",
+   "test_refresh_idle",
+   "test_row_conflict",
+   "test_stream",
+   "test_turnaround"
+  ],
+  "first_detection": "ERROR ..c/tb/pyuvm/mc_scoreboard.py(123) [uvm_test_top.env.sb]: WR at cycle 131 to line (15, 2, 31) carries data no client has outstanding for that line (data corruption or wrong address)",
+  "repro": "make -C tb/pyuvm TESTCASE=test_backpressure RANDOM_SEED=1 MUTANT=MUT_WDATA PLUSARGS=+NO_STARVE_CHK"
+ },
+ {
+  "mutant": "MUT_NO_AGING",
+  "bug": "Aging override removed from FR-FCFS+aging policy",
+  "killed": true,
+  "failing_tests": [
+   "test_starvation"
+  ],
+  "first_detection": "SVA FAIL hbm3_mc_harness.u_dut.u_mc_sva.g_age_i[15].a_no_starvation",
+  "repro": "make -C tb/pyuvm TESTCASE=test_starvation RANDOM_SEED=1 MUTANT=MUT_NO_AGING"
+ }
+]
