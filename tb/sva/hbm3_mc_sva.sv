@@ -121,6 +121,9 @@ module hbm3_mc_sva #(
 
 endmodule
 
+// Formal instantiates the checker inside hbm3_mc directly (`ifdef FORMAL),
+// and newer Yosys rejects bind, so the bind is for simulation only.
+`ifndef FORMAL
 // Bind into every hbm3_mc instance. Unpacked arrays are flattened here so the
 // checker stays portable across simulators and the open-source formal flow.
 bind hbm3_mc hbm3_mc_sva #(
@@ -139,3 +142,4 @@ bind hbm3_mc hbm3_mc_sva #(
   .e_wait_flat   (dbg_e_wait_flat),
   .dbg_aging_override, .dbg_ref_pending, .dbg_credit_stall
 );
+`endif
